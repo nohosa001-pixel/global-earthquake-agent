@@ -1,0 +1,203 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Global Earthquake Agent | Physics-ML Early Warning & B2B Oracle</title>
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
+    <!-- Leaflet CSS -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+    <!-- Custom CSS -->
+    <link rel="stylesheet" href="/static/style.css">
+    <!-- Chart.js & Leaflet JS -->
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+</head>
+<body>
+    <!-- Top Navigation Bar -->
+    <header class="app-header">
+        <div class="logo-group">
+            <div class="pulse-radar"></div>
+            <div class="logo-text">
+                <span class="brand-title">SEISMO-PHYSICS AGENT</span>
+                <span class="brand-subtitle">Gutenberg-Richter b-Value & Benioff Strain Early Warning Core</span>
+            </div>
+        </div>
+
+        <div class="header-metrics">
+            <div class="metric-badge">
+                <span class="badge-label">USGS STREAM</span>
+                <span class="badge-val text-green" id="streamStatus">LIVE (M2.5+)</span>
+            </div>
+            <div class="metric-badge">
+                <span class="badge-label">GLOBAL EVENTS</span>
+                <span class="badge-val" id="globalEventsCount">Loading...</span>
+            </div>
+            <div class="metric-badge">
+                <span class="badge-label">ORACLE INTEGRATION</span>
+                <span class="badge-val text-accent">Cat-Bond & Fab Sentinel</span>
+            </div>
+            <button class="btn-refresh" id="btnRefresh">🔄 실시간 새로고침</button>
+        </div>
+    </header>
+
+    <!-- Main Container -->
+    <main class="main-layout">
+        <!-- Left Sidebar: Fault Zone Selection & Physics Stats -->
+        <aside class="sidebar-panel">
+            <div class="panel-header">
+                <h3>🌋 글로벌 주요 단층대 위험도</h3>
+                <span class="sub-label">실시간 b-value 분석</span>
+            </div>
+
+            <div class="zone-list" id="zoneListContainer">
+                <div class="loading-spinner">단층대 지진 데이터 분석 중...</div>
+            </div>
+
+            <!-- Selected Zone Deep Physics Card -->
+            <div class="card physics-card" id="selectedZoneCard">
+                <div class="card-header">
+                    <h4 id="detailZoneName">일본 도호쿠/관동 해구</h4>
+                    <span class="pill-badge pill-normal" id="detailRiskBadge">NORMAL</span>
+                </div>
+                
+                <div class="grid-stats">
+                    <div class="stat-item">
+                        <span class="stat-label">현재 b-value</span>
+                        <span class="stat-value text-accent" id="statRecentB">0.95</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">장기 b-value</span>
+                        <span class="stat-value" id="statHistB">1.02</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">b값 하락률</span>
+                        <span class="stat-value text-warning" id="statBDrop">-6.8%</span>
+                    </div>
+                    <div class="stat-item">
+                        <span class="stat-label">완결성규모(Mc)</span>
+                        <span class="stat-value" id="statMc">M 2.8</span>
+                    </div>
+                </div>
+
+                <div class="prob-gauge-container">
+                    <div class="gauge-header">
+                        <span>향후 30일 M6.0+ 발생 확률</span>
+                        <strong class="text-accent" id="gaugeProbText">24.5%</strong>
+                    </div>
+                    <div class="progress-bar-bg">
+                        <div class="progress-bar-fill" id="gaugeProgressBar" style="width: 24.5%;"></div>
+                    </div>
+                </div>
+
+                <div class="indicators-box" id="indicatorsBox">
+                    <div class="indicator-item">• 정상적인 미소 지진 응력 해소 상태</div>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Center: Interactive Map -->
+        <section class="center-stage">
+            <div class="map-wrapper">
+                <div id="map"></div>
+                <div class="map-overlay-legend">
+                    <h5>규모 범례 (Magnitude)</h5>
+                    <div class="legend-scale">
+                        <span><i class="dot m2"></i> M2.5+</span>
+                        <span><i class="dot m4"></i> M4.5+</span>
+                        <span><i class="dot m6"></i> M6.0+</span>
+                        <span><i class="dot m7"></i> M7.0+ (임계)</span>
+                    </div>
+                    <div class="legend-assets">
+                        <span>🏭 반도체 팹/항만</span>
+                        <span>⛏️ 광산/원자재</span>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Bottom Multi-Chart Hub -->
+            <div class="charts-hub">
+                <div class="chart-card">
+                    <div class="card-header">
+                        <h5>📈 Gutenberg-Richter b-Value 시계열 추이</h5>
+                        <span class="card-caption">기준선 b=1.0 vs 최근 롤링 윈도우</span>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="bValueChart"></canvas>
+                    </div>
+                </div>
+
+                <div class="chart-card">
+                    <div class="card-header">
+                        <h5>⚡ 베니오프 변형률 (Benioff Strain S ∝ √E) 누적</h5>
+                        <span class="card-caption">지각 변형 가속도 모멘텀</span>
+                    </div>
+                    <div class="chart-box">
+                        <canvas id="strainChart"></canvas>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Right: B2B Commercial Oracle & Monetization Feed -->
+        <aside class="b2b-oracle-panel">
+            <div class="panel-header">
+                <h3>💼 B2B Commercial Oracles</h3>
+                <span class="sub-label">금융 상품 및 공급망 연동</span>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tab-header">
+                <button class="tab-btn active" data-tab="catbondTab">📜 재해보험 Cat-Bond</button>
+                <button class="tab-btn" data-tab="supplyTab">🏭 반도체 센티널</button>
+                <button class="tab-btn" data-tab="commodityTab">📈 원자재 퀀트</button>
+            </div>
+
+            <!-- Tab Content 1: Cat Bond Oracle -->
+            <div class="tab-pane active" id="catbondTab">
+                <div class="oracle-card">
+                    <div class="oracle-status-header">
+                        <span class="dot-live"></span>
+                        <strong>Parametric Cat-Bond Smart Oracle</strong>
+                    </div>
+                    <p class="desc-text">USGS 실시간 피드 검증을 통해 손해사정 없이 M6.5+ 천발 지진 발생 시 스마트 컨트랙트 즉각 트리거.</p>
+                    <div class="oracle-stream-list" id="catbondList">
+                        <div class="oracle-empty">최근 60일간 트리거 조건 부합 사건 없음 (자산 안전)</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content 2: Supply Chain Sentinel -->
+            <div class="tab-pane" id="supplyTab">
+                <div class="oracle-card">
+                    <div class="oracle-status-header">
+                        <span class="dot-live"></span>
+                        <strong>Global Semiconductor & Fab Sentinel</strong>
+                    </div>
+                    <div class="supply-list" id="supplyChainList">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Tab Content 3: Commodity Futures -->
+            <div class="tab-pane" id="commodityTab">
+                <div class="oracle-card">
+                    <div class="oracle-status-header">
+                        <span class="dot-live"></span>
+                        <strong>Commodity Futures Quant Hedge Signal</strong>
+                    </div>
+                    <div class="commodity-list" id="commodityList">
+                        <!-- Loaded dynamically -->
+                    </div>
+                </div>
+            </div>
+        </aside>
+    </main>
+
+    <script src="/static/app.js"></script>
+</body>
+</html>
